@@ -1,7 +1,6 @@
 # ============================================================
 # Walmart Weekly Sales Prediction – Databricks MLflow Version
-# Loads ensemble model from Databricks MLflow Registry
-# + OpenAI business insights
+# Corrected schema · No Dept · Proper Forecast · AI Insights
 # ============================================================
 
 import os
@@ -19,80 +18,36 @@ from openai import OpenAI
 # 1) DATABRICKS + MLflow CONFIG
 # ============================================================
 
-# These come from Streamlit Secrets (you must set them in the UI)
 DATABRICKS_HOST = st.secrets["DATABRICKS_HOST"]
 DATABRICKS_TOKEN = st.secrets["DATABRICKS_TOKEN"]
 
 os.environ["DATABRICKS_HOST"] = DATABRICKS_HOST
 os.environ["DATABRICKS_TOKEN"] = DATABRICKS_TOKEN
 
-# Use Databricks as MLflow tracking + registry
 mlflow.set_tracking_uri("databricks")
-# For Unity Catalog models, use this registry URI:
 mlflow.set_registry_uri("databricks-uc")
 
-# This is your registered model in UC:
-# catalog = workspace, schema = jzhao221, model name = walmart, version = 1
 MODEL_URI = "models:/workspace.jzhao221.walmart/1"
-
 
 @st.cache_resource
 def load_model():
-    # PyFunc model logged with mlflow.pyfunc.log_model(...)
     return mlflow.pyfunc.load_model(MODEL_URI)
-
 
 model = load_model()
 
-
 # ============================================================
-# 2) BACKGROUND + LOGO HELPERS
+# 2) BACKGROUND + LOGO
 # ============================================================
 
-def load_image_base64(path: str):
+def load_image_base64(path):
     try:
         with open(path, "rb") as f:
             return base64.b64encode(f.read()).decode()
-    except Exception:
+    except:
         return None
-
 
 bg64 = load_image_base64("background.jpg")
 logo64 = load_image_base64("logo.png")
-
-
-# ============================================================
-# 3) OPENAI CLIENT + INSIGHT FUNCTION
-# ============================================================
-
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-
-
-def ai_insight(title: str, explanation: str, values: dict):
-    prompt = f"""
-    You are a business analyst explaining results to a Walmart regional manager.
-    Use simple business English. No machine learning jargon.
-
-    Title: {title}
-    Context: {explanation}
-    Values: {values}
-
-    Provide 3–5 bullet points of insight.
-    """
-    try:
-        resp = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=220,
-        )
-        return resp.choices[0].message.content.strip()
-    except Exception as e:
-        return f"(AI insight unavailable: {e})"
-
-
-# ============================================================
-# 4) PAGE STYLING
-# ============================================================
 
 if bg64:
     st.markdown(
@@ -108,7 +63,6 @@ if bg64:
             padding: 28px;
             border-radius: 18px;
             color: white;
-            backdrop-filter: blur(10px);
         }}
         .pred-box {{
             background: #0EA5E9;
@@ -125,7 +79,36 @@ if bg64:
     )
 
 # ============================================================
-# 5) HEADER
+# 3) OPENAI CLIENT + INSIGHT FUNCTION
+# ============================================================
+
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+
+def ai_insight(title, explanation, values):
+    prompt = f"""
+    You are a business analyst explaining results to a Walmart regional manager.
+    Use simple business English and avoid ML jargon.
+
+    Title: {title}
+    Context: {explanation}
+    Values: {values}
+
+    Provide 3–5 bullet points.
+    """
+
+    try:
+        resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=220,
+        )
+        return resp.choices[0].message.content.strip()
+    except Exception as e:
+        return f"(AI insight unavailable: {e})"
+
+
+# ============================================================
+# 4) HEADER
 # ============================================================
 
 st.markdown(
@@ -146,7 +129,7 @@ if logo64:
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ============================================================
-# 6) MAIN CARD + INPUT FORM
+# 5) MAIN INPUT CARD
 # ============================================================
 
 st.markdown("<div class='main-card'>", unsafe_allow_html=True)
@@ -157,56 +140,60 @@ col1, col2 = st.columns(2)
 
 with col1:
     store = st.number_input("Store ID", 1, 50, 1)
-    dept = st.number_input("Dept ID", 1, 99, 1)
     holiday = st.selectbox("Holiday Flag (0 = No, 1 = Yes)", [0, 1])
     year = st.number_input("Year", 2010, 2030, 2023)
+    temp = st.number_input("Temperature (°F)", value=70.0)
 
 with col2:
     month = st.number_input("Month", 1, 12, 1)
-    week = st.number_input("Week of Year", 1, 53, 1)
-    temp = st.number_input("Temperature (°F)", value=70.0)
+    week = st.number_input("Week", 1, 53, 1)
     fuel = st.number_input("Fuel Price ($)", value=2.50)
     cpi = st.number_input("CPI", value=220.0)
     unemp = st.number_input("Unemployment Rate (%)", value=5.0)
 
+# ============================================================
+# FIXED INPUT SCHEMA — matches your model EXACTLY
+# ============================================================
+
 input_df = pd.DataFrame(
     {
-        "Store": [store],
-        "Dept": [dept],
-        "Holiday_Flag": [holiday],
-        "Temperature": [temp],
-        "Fuel_Price": [fuel],
-        "CPI": [cpi],
-        "Unemployment": [unemp],
-        "Year": [year],
-        "Month": [month],
-        "Week": [week],
+        "Store": [float(store)],
+        "Holiday_Flag": [float(holiday)],
+        "Temperature": [float(temp)],
+        "Fuel_Price": [float(fuel)],
+        "CPI": [float(cpi)],
+        "Unemployment": [float(unemp)],
+        "Year": [float(year)],
+        "Month": [float(month)],
+        "Week": [float(week)],
     }
 )
 
 # ============================================================
-# 7) PREDICTION
+# 6) PREDICTION
 # ============================================================
 
 st.subheader("📌 Predicted Weekly Sales")
 
 if st.button("Predict Weekly Sales"):
     pred = float(model.predict(input_df)[0])
+
     st.markdown(
-        f"<div class='pred-box'><b>${pred:,.2f}</b></div>", unsafe_allow_html=True
+        f"<div class='pred-box'><b>${pred:,.2f}</b></div>",
+        unsafe_allow_html=True,
     )
 
     st.write("### 🧠 AI Interpretation")
     st.info(
         ai_insight(
             "Weekly Sales Prediction",
-            "Explain what this prediction means for staffing and inventory decisions.",
-            {"predicted_sales": pred, "store": store, "dept": dept},
+            "Explain what this means for labor, scheduling, and inventory decisions.",
+            {"predicted_sales": pred, "store": store},
         )
     )
 
 # ============================================================
-# 8) FEATURE IMPORTANCE (Sensitivity Analysis)
+# 7) FEATURE SENSITIVITY — fully fixed
 # ============================================================
 
 st.subheader("📍 Feature Sensitivity (What drives this prediction?)")
@@ -216,8 +203,7 @@ importance = {}
 
 for col in input_df.columns:
     tmp = input_df.copy()
-    # +10% change to each feature
-    tmp[col] = tmp[col] * 1.10
+    tmp[col] = tmp[col] * 1.10  # +10%
     new_pred = float(model.predict(tmp)[0])
     importance[col] = abs(new_pred - base_pred)
 
@@ -226,28 +212,39 @@ importance = dict(sorted(importance.items(), key=lambda x: x[1], reverse=True))
 fig_imp, ax_imp = plt.subplots()
 ax_imp.barh(list(importance.keys()), list(importance.values()), color="#38BDF8")
 ax_imp.invert_yaxis()
-ax_imp.set_xlabel("Change in Predicted Sales (absolute)")
-ax_imp.set_title("Feature Sensitivity (10% Increase)")
+ax_imp.set_xlabel("Change in Predicted Sales")
+ax_imp.set_title("Feature Sensitivity (+10%)")
+
 st.pyplot(fig_imp)
 
 st.write("### 🧠 AI Insight on Drivers")
 st.info(
     ai_insight(
         "Feature Sensitivity",
-        "Explain which features matter most for this prediction.",
+        "Explain which inputs most affect the prediction.",
         importance,
     )
 )
 
 # ============================================================
-# 9) 10-WEEK FORECAST
+# 8) 10-WEEK FORECAST — fully fixed
 # ============================================================
 
 st.subheader("📈 10-Week Sales Forecast")
 
-future_weeks = np.arange(week, week + 10)
-forecast_df = input_df.loc[input_df.index.repeat(10)].copy()
-forecast_df["Week"] = future_weeks
+future_weeks = np.arange(float(week), float(week) + 10)
+
+forecast_df = pd.DataFrame({
+    "Store": [float(store)] * 10,
+    "Holiday_Flag": [float(holiday)] * 10,
+    "Temperature": [float(temp)] * 10,
+    "Fuel_Price": [float(fuel)] * 10,
+    "CPI": [float(cpi)] * 10,
+    "Unemployment": [float(unemp)] * 10,
+    "Year": [float(year)] * 10,
+    "Month": [float(month)] * 10,
+    "Week": future_weeks,
+})
 
 future_preds = model.predict(forecast_df)
 
@@ -255,14 +252,15 @@ fig_fore, ax_fore = plt.subplots()
 ax_fore.plot(future_weeks, future_preds, marker="o", color="#00D5FF")
 ax_fore.set_xlabel("Week Number")
 ax_fore.set_ylabel("Predicted Weekly Sales")
-ax_fore.set_title("10-Week Forecast for This Store & Dept")
+ax_fore.set_title("10-Week Forecast")
+
 st.pyplot(fig_fore)
 
 st.write("### 🧠 AI Insight on Forecast")
 st.info(
     ai_insight(
         "10-Week Forecast",
-        "Explain how this forecast can help planning (labor, inventory, promos).",
+        "Explain how this helps managers plan ahead.",
         {"weeks": list(future_weeks), "sales": list(map(float, future_preds))},
     )
 )
