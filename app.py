@@ -19,21 +19,26 @@ from openai import OpenAI
 # 1) DATABRICKS + MLflow CONFIG
 # ============================================================
 
+# These come from Streamlit Secrets (you must set them in the UI)
 DATABRICKS_HOST = st.secrets["DATABRICKS_HOST"]
 DATABRICKS_TOKEN = st.secrets["DATABRICKS_TOKEN"]
 
 os.environ["DATABRICKS_HOST"] = DATABRICKS_HOST
 os.environ["DATABRICKS_TOKEN"] = DATABRICKS_TOKEN
 
+# Use Databricks as MLflow tracking + registry
 mlflow.set_tracking_uri("databricks")
+# For Unity Catalog models, use this registry URI:
 mlflow.set_registry_uri("databricks-uc")
 
-# IMPORTANT — This model signature DOES NOT include Dept
+# This is your registered model in UC:
+# catalog = workspace, schema = jzhao221, model name = walmart, version = 1
 MODEL_URI = "models:/workspace.jzhao221.walmart/1"
 
 
 @st.cache_resource
 def load_model():
+    # PyFunc model logged with mlflow.pyfunc.log_model(...)
     return mlflow.pyfunc.load_model(MODEL_URI)
 
 
@@ -41,7 +46,7 @@ model = load_model()
 
 
 # ============================================================
-# 2) HELPER — LOAD BACKGROUND / LOGO
+# 2) BACKGROUND + LOGO HELPERS
 # ============================================================
 
 def load_image_base64(path: str):
@@ -66,7 +71,7 @@ client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 def ai_insight(title: str, explanation: str, values: dict):
     prompt = f"""
     You are a business analyst explaining results to a Walmart regional manager.
-    Use simple business English. No ML jargon.
+    Use simple business English. No machine learning jargon.
 
     Title: {title}
     Context: {explanation}
@@ -152,6 +157,7 @@ col1, col2 = st.columns(2)
 
 with col1:
     store = st.number_input("Store ID", 1, 50, 1)
+    dept = st.number_input("Dept ID", 1, 99, 1)
     holiday = st.selectbox("Holiday Flag (0 = No, 1 = Yes)", [0, 1])
     year = st.number_input("Year", 2010, 2030, 2023)
 
@@ -163,10 +169,10 @@ with col2:
     cpi = st.number_input("CPI", value=220.0)
     unemp = st.number_input("Unemployment Rate (%)", value=5.0)
 
-# IMPORTANT: Dept removed — matches MLflow signature
 input_df = pd.DataFrame(
     {
         "Store": [store],
+        "Dept": [dept],
         "Holiday_Flag": [holiday],
         "Temperature": [temp],
         "Fuel_Price": [fuel],
@@ -176,8 +182,7 @@ input_df = pd.DataFrame(
         "Month": [month],
         "Week": [week],
     }
-).astype(float)
-
+)
 
 # ============================================================
 # 7) PREDICTION
@@ -196,46 +201,43 @@ if st.button("Predict Weekly Sales"):
         ai_insight(
             "Weekly Sales Prediction",
             "Explain what this prediction means for staffing and inventory decisions.",
-            {"predicted_sales": pred, "store": store},
+            {"predicted_sales": pred, "store": store, "dept": dept},
         )
     )
 
 # ============================================================
-# 8) FEATURE SENSITIVITY
+# 8) FEATURE IMPORTANCE (Sensitivity Analysis)
 # ============================================================
 
 st.subheader("📍 Feature Sensitivity (What drives this prediction?)")
 
-try:
-    base_pred = float(model.predict(input_df)[0])
-    importance = {}
+base_pred = float(model.predict(input_df)[0])
+importance = {}
 
-    for col in input_df.columns:
-        tmp = input_df.copy()
-        tmp[col] = tmp[col] * 1.10
-        new_pred = float(model.predict(tmp)[0])
-        importance[col] = abs(new_pred - base_pred)
+for col in input_df.columns:
+    tmp = input_df.copy()
+    # +10% change to each feature
+    tmp[col] = tmp[col] * 1.10
+    new_pred = float(model.predict(tmp)[0])
+    importance[col] = abs(new_pred - base_pred)
 
-    importance = dict(sorted(importance.items(), key=lambda x: x[1], reverse=True))
+importance = dict(sorted(importance.items(), key=lambda x: x[1], reverse=True))
 
-    fig_imp, ax_imp = plt.subplots()
-    ax_imp.barh(list(importance.keys()), list(importance.values()), color="#38BDF8")
-    ax_imp.invert_yaxis()
-    ax_imp.set_xlabel("Change in Predicted Sales (absolute)")
-    ax_imp.set_title("Feature Sensitivity (10% Increase)")
-    st.pyplot(fig_imp)
+fig_imp, ax_imp = plt.subplots()
+ax_imp.barh(list(importance.keys()), list(importance.values()), color="#38BDF8")
+ax_imp.invert_yaxis()
+ax_imp.set_xlabel("Change in Predicted Sales (absolute)")
+ax_imp.set_title("Feature Sensitivity (10% Increase)")
+st.pyplot(fig_imp)
 
-    st.write("### 🧠 AI Insight on Drivers")
-    st.info(
-        ai_insight(
-            "Feature Sensitivity",
-            "Explain which features matter most for this prediction.",
-            importance,
-        )
+st.write("### 🧠 AI Insight on Drivers")
+st.info(
+    ai_insight(
+        "Feature Sensitivity",
+        "Explain which features matter most for this prediction.",
+        importance,
     )
-
-except Exception as e:
-    st.error(f"Could not compute feature sensitivity: {e}")
+)
 
 # ============================================================
 # 9) 10-WEEK FORECAST
@@ -244,10 +246,8 @@ except Exception as e:
 st.subheader("📈 10-Week Sales Forecast")
 
 future_weeks = np.arange(week, week + 10)
-
 forecast_df = input_df.loc[input_df.index.repeat(10)].copy()
 forecast_df["Week"] = future_weeks
-forecast_df = forecast_df.astype(float)
 
 future_preds = model.predict(forecast_df)
 
@@ -255,7 +255,7 @@ fig_fore, ax_fore = plt.subplots()
 ax_fore.plot(future_weeks, future_preds, marker="o", color="#00D5FF")
 ax_fore.set_xlabel("Week Number")
 ax_fore.set_ylabel("Predicted Weekly Sales")
-ax_fore.set_title("10-Week Forecast for This Store")
+ax_fore.set_title("10-Week Forecast for This Store & Dept")
 st.pyplot(fig_fore)
 
 st.write("### 🧠 AI Insight on Forecast")
