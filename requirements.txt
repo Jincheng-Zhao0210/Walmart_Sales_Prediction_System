@@ -3,6 +3,6 @@ scikit-learn==1.6.1
 pandas==2.3.5
 numpy==2.0.2
 psutil==5.9.5
-matplotlib
 openai
+matplotlib
 streamlit
