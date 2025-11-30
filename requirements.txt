@@ -2,6 +2,7 @@ streamlit
 pandas
 numpy
 matplotlib
-scikit-learn
 mlflow
 openai
+scikit-learn==1.6.1
+cloudpickle
