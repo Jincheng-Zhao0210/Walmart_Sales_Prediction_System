@@ -135,40 +135,48 @@ if logo64:
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ============================================================
-# 5) BEAUTIFUL PROJECT OVERVIEW SECTION
+# 5) ENHANCED PROJECT OVERVIEW (YOUR EXACT TEXT)
 # ============================================================
 
 st.markdown("""
-<div style="background: rgba(0,0,0,0.65); padding: 25px; 
-            border-radius: 15px; margin-bottom: 25px;
+<div style="background: rgba(0,0,0,0.65); padding: 30px; 
+            border-radius: 18px; margin-bottom: 30px;
             border: 1px solid rgba(56, 189, 248, 0.45);">
 
-<h2 style="text-align:center;">📘 Project Overview</h2>
+<h1 style="text-align:center; color:#38BDF8; font-weight:900;">
+    📊 Walmart Weekly Sales Prediction Dashboard
+</h1>
 
-<p>
-This dashboard is part of a machine learning project designed to predict 
-<strong>Walmart's weekly sales</strong> and provide insights that help 
-leaders make faster and smarter decisions.
-</p>
+<br>
 
-<h4>👥 For Store & Regional Managers</h4>
+<h2 style="color:#38BDF8; font-weight:800;">📝 Project Overview</h2>
+
+<p>This application is part of a machine learning project focused on predicting 
+<strong>Walmart’s weekly sales</strong> and making these predictions accessible 
+through an easy-to-use web interface.</p>
+
+<p>The tool is designed to support <strong>Store Managers</strong> and 
+<strong>Regional Managers</strong> by helping them make data-driven operational decisions, such as:</p>
+
+<h3 style="color:#38BDF8; font-weight:800;">For Store & Regional Managers:</h3>
 <ul>
-    <li>📅 Determine how many employees to schedule</li>
-    <li>📦 Decide how much inventory to order</li>
-    <li>📈 Prepare for high-demand or seasonal peaks</li>
+    <li>👥 How many employees to schedule</li>
+    <li>📦 How much inventory to order</li>
+    <li>📈 When to prepare for high-demand periods</li>
 </ul>
 
-<h4>🚚 For Supply Chain & Inventory Planners</h4>
+<p>Because the interface requires <strong>no coding skills</strong>, managers can obtain real-time sales predictions quickly.</p>
+
+<h3 style="color:#38BDF8; font-weight:800;">For Supply Chain & Inventory Planners:</h3>
 <ul>
-    <li>❌ Prevent stockouts and lost revenue</li>
-    <li>📉 Reduce overstock and holding costs</li>
-    <li>🚛 Plan replenishment more efficiently</li>
+    <li>🚫 Prevent stockouts</li>
+    <li>📉 Reduce overstock</li>
+    <li>🚚 Manage logistics and replenishment more efficiently</li>
 </ul>
 
-<p>
-By converting raw data into <strong>actionable insights</strong>, this application 
-enhances operational forecasting, planning, and decision-making across Walmart stores.
-</p>
+<p>This application transforms raw data into 
+<strong>actionable insights</strong>, helping Walmart improve forecasting, planning, 
+and operational efficiency.</p>
 
 </div>
 """, unsafe_allow_html=True)
