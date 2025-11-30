@@ -4,5 +4,6 @@ numpy
 matplotlib
 mlflow
 openai
-scikit-learn==1.6.1
 cloudpickle
+scikit-learn==1.4.2
+psutil
