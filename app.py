@@ -19,26 +19,20 @@ from openai import OpenAI
 # 1) DATABRICKS + MLflow CONFIG
 # ============================================================
 
-# These come from Streamlit Secrets (you must set them in the UI)
 DATABRICKS_HOST = st.secrets["DATABRICKS_HOST"]
 DATABRICKS_TOKEN = st.secrets["DATABRICKS_TOKEN"]
 
 os.environ["DATABRICKS_HOST"] = DATABRICKS_HOST
 os.environ["DATABRICKS_TOKEN"] = DATABRICKS_TOKEN
 
-# Use Databricks as MLflow tracking + registry
 mlflow.set_tracking_uri("databricks")
-# For Unity Catalog models, use this registry URI:
 mlflow.set_registry_uri("databricks-uc")
 
-# This is your registered model in UC:
-# catalog = workspace, schema = jzhao221, model name = walmart, version = 1
 MODEL_URI = "models:/workspace.jzhao221.walmart/1"
 
 
 @st.cache_resource
 def load_model():
-    # PyFunc model logged with mlflow.pyfunc.log_model(...)
     return mlflow.pyfunc.load_model(MODEL_URI)
 
 
@@ -169,6 +163,7 @@ with col2:
     cpi = st.number_input("CPI", value=220.0)
     unemp = st.number_input("Unemployment Rate (%)", value=5.0)
 
+# -------- FIXED: MLflow requires exact float schema --------
 input_df = pd.DataFrame(
     {
         "Store": [store],
@@ -182,7 +177,8 @@ input_df = pd.DataFrame(
         "Month": [month],
         "Week": [week],
     }
-)
+).astype(float)  # 👈 REQUIRED FIX
+
 
 # ============================================================
 # 7) PREDICTION
@@ -211,33 +207,36 @@ if st.button("Predict Weekly Sales"):
 
 st.subheader("📍 Feature Sensitivity (What drives this prediction?)")
 
-base_pred = float(model.predict(input_df)[0])
-importance = {}
+try:
+    base_pred = float(model.predict(input_df)[0])
+    importance = {}
 
-for col in input_df.columns:
-    tmp = input_df.copy()
-    # +10% change to each feature
-    tmp[col] = tmp[col] * 1.10
-    new_pred = float(model.predict(tmp)[0])
-    importance[col] = abs(new_pred - base_pred)
+    for col in input_df.columns:
+        tmp = input_df.copy()
+        tmp[col] = tmp[col] * 1.10  # +10%
+        new_pred = float(model.predict(tmp)[0])
+        importance[col] = abs(new_pred - base_pred)
 
-importance = dict(sorted(importance.items(), key=lambda x: x[1], reverse=True))
+    importance = dict(sorted(importance.items(), key=lambda x: x[1], reverse=True))
 
-fig_imp, ax_imp = plt.subplots()
-ax_imp.barh(list(importance.keys()), list(importance.values()), color="#38BDF8")
-ax_imp.invert_yaxis()
-ax_imp.set_xlabel("Change in Predicted Sales (absolute)")
-ax_imp.set_title("Feature Sensitivity (10% Increase)")
-st.pyplot(fig_imp)
+    fig_imp, ax_imp = plt.subplots()
+    ax_imp.barh(list(importance.keys()), list(importance.values()), color="#38BDF8")
+    ax_imp.invert_yaxis()
+    ax_imp.set_xlabel("Change in Predicted Sales (absolute)")
+    ax_imp.set_title("Feature Sensitivity (10% Increase)")
+    st.pyplot(fig_imp)
 
-st.write("### 🧠 AI Insight on Drivers")
-st.info(
-    ai_insight(
-        "Feature Sensitivity",
-        "Explain which features matter most for this prediction.",
-        importance,
+    st.write("### 🧠 AI Insight on Drivers")
+    st.info(
+        ai_insight(
+            "Feature Sensitivity",
+            "Explain which features matter most for this prediction.",
+            importance,
+        )
     )
-)
+
+except Exception as e:
+    st.error(f"Could not compute feature sensitivity: {e}")
 
 # ============================================================
 # 9) 10-WEEK FORECAST
@@ -246,8 +245,11 @@ st.info(
 st.subheader("📈 10-Week Sales Forecast")
 
 future_weeks = np.arange(week, week + 10)
+
 forecast_df = input_df.loc[input_df.index.repeat(10)].copy()
 forecast_df["Week"] = future_weeks
+
+forecast_df = forecast_df.astype(float)  # 👈 REQUIRED FIX
 
 future_preds = model.predict(forecast_df)
 
