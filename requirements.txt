@@ -2,8 +2,10 @@ streamlit
 pandas
 numpy
 matplotlib
-mlflow
+mlflow==2.12.2
+scikit-learn==1.2.2
 openai
-cloudpickle
-scikit-learn==1.4.2
 psutil
+cloudpickle
+requests
+pyyaml
