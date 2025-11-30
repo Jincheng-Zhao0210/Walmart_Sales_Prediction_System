@@ -1,6 +1,6 @@
 # ============================================================
-# Walmart Weekly Sales Prediction – Databricks MLflow Version
-# Corrected schema · No Dept · Proper Forecast · AI Insights
+# Walmart Weekly Sales Prediction Dashboard
+# Dark Theme • Sky Blue Accents • AI Insights • Python 3.12 Compatible
 # ============================================================
 
 import os
@@ -20,7 +20,6 @@ from openai import OpenAI
 
 DATABRICKS_HOST = st.secrets["DATABRICKS_HOST"]
 DATABRICKS_TOKEN = st.secrets["DATABRICKS_TOKEN"]
-
 os.environ["DATABRICKS_HOST"] = DATABRICKS_HOST
 os.environ["DATABRICKS_TOKEN"] = DATABRICKS_TOKEN
 
@@ -62,7 +61,7 @@ if bg64:
             background: rgba(0,0,0,0.75);
             padding: 28px;
             border-radius: 18px;
-            color: white;
+            color: #F8FAFC;
         }}
         .pred-box {{
             background: #0EA5E9;
@@ -72,6 +71,15 @@ if bg64:
             text-align: center;
             color: white;
             margin-top: 15px;
+        }}
+        h1, h2, h3, h4, h5 {{
+            color: #38BDF8 !important;
+            font-weight: 800 !important;
+        }}
+        p, li {{
+            color: rgba(255,255,255,0.95);
+            font-size: 17px;
+            line-height: 1.5;
         }}
         </style>
         """,
@@ -86,50 +94,87 @@ client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 def ai_insight(title, explanation, values):
     prompt = f"""
-    You are a business analyst explaining results to a Walmart regional manager.
-    Use simple business English and avoid ML jargon.
+    You are a business analyst explaining results to Walmart executives.
+    Use clear business English, avoid ML jargon, and give 3–5 bullet points.
 
     Title: {title}
     Context: {explanation}
     Values: {values}
-
-    Provide 3–5 bullet points.
     """
 
     try:
         resp = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=220,
+            max_tokens=200,
         )
         return resp.choices[0].message.content.strip()
     except Exception as e:
         return f"(AI insight unavailable: {e})"
-
 
 # ============================================================
 # 4) HEADER
 # ============================================================
 
 st.markdown(
-    "<h1 style='text-align:center;color:#38BDF8;'>Walmart Weekly Sales Predictor</h1>",
+    "<h1 style='text-align:center;'>📊 Walmart Weekly Sales Prediction Dashboard</h1>",
     unsafe_allow_html=True,
 )
+
 st.markdown(
-    "<p style='text-align:center;color:#93c5fd;'>Databricks MLflow Model · AI Insights · 10-Week Forecast</p>",
+    "<p style='text-align:center;color:#A5F3FC;'>Dark Theme • Sky Blue Accents • AI Insights</p>",
     unsafe_allow_html=True,
 )
 
 if logo64:
     st.markdown(
-        f"<div style='text-align:center;'><img src='data:image/png;base64,{logo64}' width='160'></div>",
+        f"<div style='text-align:center;'><img src='data:image/png;base64,{logo64}' width='150'></div>",
         unsafe_allow_html=True,
     )
 
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ============================================================
-# 5) MAIN INPUT CARD
+# 5) BEAUTIFUL PROJECT OVERVIEW SECTION
+# ============================================================
+
+st.markdown("""
+<div style="background: rgba(0,0,0,0.65); padding: 25px; 
+            border-radius: 15px; margin-bottom: 25px;
+            border: 1px solid rgba(56, 189, 248, 0.45);">
+
+<h2 style="text-align:center;">📘 Project Overview</h2>
+
+<p>
+This dashboard is part of a machine learning project designed to predict 
+<strong>Walmart's weekly sales</strong> and provide insights that help 
+leaders make faster and smarter decisions.
+</p>
+
+<h4>👥 For Store & Regional Managers</h4>
+<ul>
+    <li>📅 Determine how many employees to schedule</li>
+    <li>📦 Decide how much inventory to order</li>
+    <li>📈 Prepare for high-demand or seasonal peaks</li>
+</ul>
+
+<h4>🚚 For Supply Chain & Inventory Planners</h4>
+<ul>
+    <li>❌ Prevent stockouts and lost revenue</li>
+    <li>📉 Reduce overstock and holding costs</li>
+    <li>🚛 Plan replenishment more efficiently</li>
+</ul>
+
+<p>
+By converting raw data into <strong>actionable insights</strong>, this application 
+enhances operational forecasting, planning, and decision-making across Walmart stores.
+</p>
+
+</div>
+""", unsafe_allow_html=True)
+
+# ============================================================
+# 6) MAIN INPUT CARD
 # ============================================================
 
 st.markdown("<div class='main-card'>", unsafe_allow_html=True)
@@ -146,31 +191,29 @@ with col1:
 
 with col2:
     month = st.number_input("Month", 1, 12, 1)
-    week = st.number_input("Week", 1, 53, 1)
+    week = st.number_input("Week of Year", 1, 53, 1)
     fuel = st.number_input("Fuel Price ($)", value=2.50)
     cpi = st.number_input("CPI", value=220.0)
     unemp = st.number_input("Unemployment Rate (%)", value=5.0)
 
 # ============================================================
-# FIXED INPUT SCHEMA — matches your model EXACTLY
+# 7) FIXED INPUT SCHEMA — MATCHES YOUR MODEL EXACTLY
 # ============================================================
 
-input_df = pd.DataFrame(
-    {
-        "Store": [float(store)],
-        "Holiday_Flag": [float(holiday)],
-        "Temperature": [float(temp)],
-        "Fuel_Price": [float(fuel)],
-        "CPI": [float(cpi)],
-        "Unemployment": [float(unemp)],
-        "Year": [float(year)],
-        "Month": [float(month)],
-        "Week": [float(week)],
-    }
-)
+input_df = pd.DataFrame({
+    "Store": [float(store)],
+    "Holiday_Flag": [float(holiday)],
+    "Temperature": [float(temp)],
+    "Fuel_Price": [float(fuel)],
+    "CPI": [float(cpi)],
+    "Unemployment": [float(unemp)],
+    "Year": [float(year)],
+    "Month": [float(month)],
+    "Week": [float(week)],
+})
 
 # ============================================================
-# 6) PREDICTION
+# 8) PREDICTION
 # ============================================================
 
 st.subheader("📌 Predicted Weekly Sales")
@@ -187,13 +230,13 @@ if st.button("Predict Weekly Sales"):
     st.info(
         ai_insight(
             "Weekly Sales Prediction",
-            "Explain what this means for labor, scheduling, and inventory decisions.",
+            "Explain the meaning of this forecast for labor planning and inventory decisions.",
             {"predicted_sales": pred, "store": store},
         )
     )
 
 # ============================================================
-# 7) FEATURE SENSITIVITY — fully fixed
+# 9) FEATURE SENSITIVITY
 # ============================================================
 
 st.subheader("📍 Feature Sensitivity (What drives this prediction?)")
@@ -203,7 +246,7 @@ importance = {}
 
 for col in input_df.columns:
     tmp = input_df.copy()
-    tmp[col] = tmp[col] * 1.10  # +10%
+    tmp[col] = tmp[col] * 1.10
     new_pred = float(model.predict(tmp)[0])
     importance[col] = abs(new_pred - base_pred)
 
@@ -214,20 +257,19 @@ ax_imp.barh(list(importance.keys()), list(importance.values()), color="#38BDF8")
 ax_imp.invert_yaxis()
 ax_imp.set_xlabel("Change in Predicted Sales")
 ax_imp.set_title("Feature Sensitivity (+10%)")
-
 st.pyplot(fig_imp)
 
 st.write("### 🧠 AI Insight on Drivers")
 st.info(
     ai_insight(
         "Feature Sensitivity",
-        "Explain which inputs most affect the prediction.",
+        "Explain which inputs have the greatest influence on projected sales.",
         importance,
     )
 )
 
 # ============================================================
-# 8) 10-WEEK FORECAST — fully fixed
+# 10) 10-WEEK FORECAST
 # ============================================================
 
 st.subheader("📈 10-Week Sales Forecast")
@@ -253,14 +295,13 @@ ax_fore.plot(future_weeks, future_preds, marker="o", color="#00D5FF")
 ax_fore.set_xlabel("Week Number")
 ax_fore.set_ylabel("Predicted Weekly Sales")
 ax_fore.set_title("10-Week Forecast")
-
 st.pyplot(fig_fore)
 
 st.write("### 🧠 AI Insight on Forecast")
 st.info(
     ai_insight(
         "10-Week Forecast",
-        "Explain how this helps managers plan ahead.",
+        "Explain how this forecast supports planning and operations.",
         {"weeks": list(future_weeks), "sales": list(map(float, future_preds))},
     )
 )
