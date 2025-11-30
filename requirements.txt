@@ -6,4 +6,3 @@ numpy==2.0.2
 psutil==5.9.5
 matplotlib
 openai
-
